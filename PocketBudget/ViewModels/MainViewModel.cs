@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Media;
 using Microsoft.Maui.Storage;
+using Microsoft.Maui.Devices;
 using PocketBudget.Models;
 using PocketBudget.Repositories;
 using PocketBudget.Services;
@@ -10,6 +11,7 @@ using PocketBudget.Validators;
 using PocketBudget.Views;
 using System.Collections.ObjectModel;
 using System.Text.Json;
+
 
 namespace PocketBudget.ViewModels;
 
@@ -208,6 +210,8 @@ public partial class MainViewModel : ObservableObject
             ReceiptImagePath = null;
             ReceiptStatusMessage = "Sin foto de ticket.";
 
+            VibrateOnSave();
+
             StatusMessage = "Gasto guardado correctamente 💖";
         }
         catch (Exception ex)
@@ -216,7 +220,24 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    private static void VibrateOnSave()
+    {
+        try
+        {
+            if (Vibration.Default.IsSupported)
+            {
+                Vibration.Default.Vibrate(TimeSpan.FromMilliseconds(250));
+            }
+        }
+        catch
+        {
+            // Si el dispositivo no permite vibración, la app continúa funcionando.
+        }
+    }
+
+
     [RelayCommand]
+
     private async Task GoToDetail(Expense? expense)
     {
         if (expense is null)
