@@ -124,6 +124,34 @@
                         TextColor="#5C3A4D"
                         TitleColor="#B5839D"/>
 
+                    <Label
+                        Text="🧾 Ticket o comprobante"
+                        FontAttributes="Bold"
+                        FontSize="15"
+                        TextColor="#9D4E77"/>
+
+                    <Button
+                        Text="📸 Sacar foto del ticket"
+                        Command="{Binding CaptureReceiptCommand}"
+                        BackgroundColor="#CDB4DB"
+                        TextColor="White"
+                        FontAttributes="Bold"
+                        CornerRadius="20"
+                        HeightRequest="48"/>
+
+                    <Label
+                        Text="{Binding ReceiptStatusMessage}"
+                        FontSize="13"
+                        TextColor="#7A4E69"
+                        HorizontalOptions="Center"
+                        HorizontalTextAlignment="Center"/>
+
+                    <Image
+                        Source="{Binding ReceiptImagePath}"
+                        HeightRequest="140"
+                        Aspect="AspectFit"
+                        BackgroundColor="#FFF0F5"/>
+
                     <Button
                         Text="Agregar gasto 💖"
                         Command="{Binding AddExpenseCommand}"

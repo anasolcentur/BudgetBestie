@@ -1,5 +1,7 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Maui.ApplicationModel;
+using Microsoft.Maui.Media;
 using Microsoft.Maui.Storage;
 using PocketBudget.Models;
 using PocketBudget.Repositories;
@@ -41,6 +43,12 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private Category? selectedCategory;
+
+    [ObservableProperty]
+    private string? receiptImagePath;
+
+    [ObservableProperty]
+    private string receiptStatusMessage = "Sin foto de ticket.";
 
     public ObservableCollection<Category> Categories { get; } = new();
 
@@ -111,6 +119,59 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task CaptureReceipt()
+    {
+        try
+        {
+            if (!MediaPicker.Default.IsCaptureSupported)
+            {
+                ReceiptStatusMessage = "La cámara no está disponible en este dispositivo.";
+                return;
+            }
+
+            var permissionStatus = await Permissions.CheckStatusAsync<Permissions.Camera>();
+
+            if (permissionStatus != PermissionStatus.Granted)
+            {
+                permissionStatus = await Permissions.RequestAsync<Permissions.Camera>();
+            }
+
+            if (permissionStatus != PermissionStatus.Granted)
+            {
+                ReceiptStatusMessage = "No se otorgó permiso para usar la cámara.";
+                return;
+            }
+
+            var photo = await MediaPicker.Default.CapturePhotoAsync();
+
+            if (photo is null)
+            {
+                ReceiptStatusMessage = "No se tomó ninguna foto.";
+                return;
+            }
+
+            var fileName = $"ticket_{DateTime.Now:yyyyMMdd_HHmmss}.jpg";
+            var localPath = Path.Combine(FileSystem.AppDataDirectory, fileName);
+
+            await using var sourceStream = await photo.OpenReadAsync();
+            await using var localFileStream = File.OpenWrite(localPath);
+
+            await sourceStream.CopyToAsync(localFileStream);
+
+            ReceiptImagePath = localPath;
+            ReceiptStatusMessage = "Ticket agregado correctamente 📸";
+        }
+        catch (PermissionException)
+        {
+            ReceiptStatusMessage = "No se pudo acceder a la cámara por permisos.";
+        }
+        catch (Exception ex)
+        {
+            ReceiptStatusMessage = $"No se pudo guardar la foto del ticket: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
     private async Task AddExpense()
     {
         var isValid = ExpenseValidator.TryValidate(
@@ -131,7 +192,8 @@ public partial class MainViewModel : ObservableObject
             Description = ExpenseDescription.Trim(),
             Amount = amount,
             Category = SelectedCategory!.Name,
-            Date = DateTime.Now
+            Date = DateTime.Now,
+            ReceiptImagePath = ReceiptImagePath
         };
 
         try
@@ -143,6 +205,8 @@ public partial class MainViewModel : ObservableObject
             ExpenseDescription = string.Empty;
             ExpenseAmount = string.Empty;
             SelectedCategory = null;
+            ReceiptImagePath = null;
+            ReceiptStatusMessage = "Sin foto de ticket.";
 
             StatusMessage = "Gasto guardado correctamente 💖";
         }

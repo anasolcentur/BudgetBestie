@@ -14,4 +14,6 @@ public class Expense
     public string Category { get; set; } = string.Empty;
 
     public DateTime Date { get; set; } = DateTime.Now;
+
+    public string? ReceiptImagePath { get; set; }
 }
