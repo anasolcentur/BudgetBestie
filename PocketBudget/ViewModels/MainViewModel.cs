@@ -11,11 +11,15 @@ namespace PocketBudget.ViewModels;
 
 public partial class MainViewModel : ObservableObject
 {
-    private readonly ApiService _apiService;
+    private readonly IApiService _apiService;
 
-    public MainViewModel()
+    public MainViewModel() : this(new ApiService())
     {
-        _apiService = new ApiService();
+    }
+
+    public MainViewModel(IApiService apiService)
+    {
+        _apiService = apiService;
     }
 
     [ObservableProperty]

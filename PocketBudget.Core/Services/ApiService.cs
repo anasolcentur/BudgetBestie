@@ -3,13 +3,17 @@ using System.Text.Json;
 
 namespace PocketBudget.Services;
 
-public class ApiService
+public class ApiService : IApiService
 {
     private readonly HttpClient _httpClient;
 
-    public ApiService()
+    public ApiService() : this(new HttpClient())
     {
-        _httpClient = new HttpClient();
+    }
+
+    public ApiService(HttpClient httpClient)
+    {
+        _httpClient = httpClient;
     }
 
     public async Task<List<Category>> GetCategoriesAsync()
