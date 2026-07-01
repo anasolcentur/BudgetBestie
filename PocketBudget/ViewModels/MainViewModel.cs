@@ -1,6 +1,8 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Maui.Storage;
 using PocketBudget.Models;
+using PocketBudget.Repositories;
 using PocketBudget.Services;
 using PocketBudget.Validators;
 using PocketBudget.Views;
@@ -12,14 +14,20 @@ namespace PocketBudget.ViewModels;
 public partial class MainViewModel : ObservableObject
 {
     private readonly IApiService _apiService;
+    private readonly IExpenseRepository _expenseRepository;
 
-    public MainViewModel() : this(new ApiService())
+    public MainViewModel()
+        : this(
+            new ApiService(),
+            new SqliteExpenseRepository(Path.Combine(FileSystem.AppDataDirectory, "expenses.db3")))
     {
+        _ = LoadSavedExpensesAsync();
     }
 
-    public MainViewModel(IApiService apiService)
+    public MainViewModel(IApiService apiService, IExpenseRepository expenseRepository)
     {
         _apiService = apiService;
+        _expenseRepository = expenseRepository;
     }
 
     [ObservableProperty]
@@ -37,6 +45,30 @@ public partial class MainViewModel : ObservableObject
     public ObservableCollection<Category> Categories { get; } = new();
 
     public ObservableCollection<Expense> Expenses { get; } = new();
+
+    private async Task LoadSavedExpensesAsync()
+    {
+        try
+        {
+            var savedExpenses = await _expenseRepository.GetExpensesAsync();
+
+            Expenses.Clear();
+
+            foreach (var expense in savedExpenses)
+            {
+                Expenses.Add(expense);
+            }
+
+            if (Expenses.Count > 0)
+            {
+                StatusMessage = $"Se cargaron {Expenses.Count} gastos guardados.";
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"No se pudieron cargar los gastos guardados: {ex.Message}";
+        }
+    }
 
     [RelayCommand]
     private async Task LoadCategories()
@@ -79,7 +111,7 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void AddExpense()
+    private async Task AddExpense()
     {
         var isValid = ExpenseValidator.TryValidate(
             ExpenseDescription,
@@ -94,19 +126,30 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
-        Expenses.Add(new Expense
+        var expense = new Expense
         {
             Description = ExpenseDescription.Trim(),
             Amount = amount,
             Category = SelectedCategory!.Name,
             Date = DateTime.Now
-        });
+        };
 
-        ExpenseDescription = string.Empty;
-        ExpenseAmount = string.Empty;
-        SelectedCategory = null;
+        try
+        {
+            await _expenseRepository.SaveExpenseAsync(expense);
 
-        StatusMessage = "Gasto agregado correctamente 💖";
+            Expenses.Insert(0, expense);
+
+            ExpenseDescription = string.Empty;
+            ExpenseAmount = string.Empty;
+            SelectedCategory = null;
+
+            StatusMessage = "Gasto guardado correctamente 💖";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"No se pudo guardar el gasto: {ex.Message}";
+        }
     }
 
     [RelayCommand]
