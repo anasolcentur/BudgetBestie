@@ -29,7 +29,7 @@
                         HorizontalTextAlignment="Center"/>
 
                     <Label
-                        Text="Tu mejor amiga para controlar gastos"
+                        Text="Tu aliada cute para controlar gastos"
                         FontSize="15"
                         TextColor="#FFF7FB"
                         HorizontalOptions="Center"
@@ -37,15 +37,6 @@
                 </VerticalStackLayout>
 
             </Frame>
-
-            <Button
-                Text="✨ Cargar categorías desde API"
-                Command="{Binding LoadCategoriesCommand}"
-                BackgroundColor="#CDB4DB"
-                TextColor="White"
-                FontAttributes="Bold"
-                CornerRadius="20"
-                HeightRequest="50"/>
 
             <Frame
                 Padding="13"
@@ -123,6 +114,41 @@
                         BackgroundColor="#FFF0F5"
                         TextColor="#5C3A4D"
                         TitleColor="#B5839D"/>
+
+                    <Frame
+                        Padding="14"
+                        CornerRadius="20"
+                        BackgroundColor="#FFF7FB"
+                        BorderColor="#FFE5EC"
+                        IsVisible="{Binding IsCategoryCreatorVisible}">
+
+                        <VerticalStackLayout Spacing="10">
+
+                            <Label
+                                Text="Crear nueva categoría ✨"
+                                FontAttributes="Bold"
+                                FontSize="15"
+                                TextColor="#9D4E77"/>
+
+                            <Entry
+                                Placeholder="Ej: Mascotas, Viajes, Libros..."
+                                Text="{Binding NewCategoryName}"
+                                BackgroundColor="#FFF0F5"
+                                TextColor="#5C3A4D"
+                                PlaceholderColor="#B5839D"/>
+
+                            <Button
+                                Text="Agregar categoría"
+                                Command="{Binding AddCategoryCommand}"
+                                BackgroundColor="#CDB4DB"
+                                TextColor="White"
+                                FontAttributes="Bold"
+                                CornerRadius="18"
+                                HeightRequest="44"/>
+
+                        </VerticalStackLayout>
+
+                    </Frame>
 
                     <Label
                         Text="🧾 Ticket o comprobante"

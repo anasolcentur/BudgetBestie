@@ -1,41 +1,40 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Maui.ApplicationModel;
+using Microsoft.Maui.Devices;
 using Microsoft.Maui.Media;
 using Microsoft.Maui.Storage;
-using Microsoft.Maui.Devices;
 using PocketBudget.Models;
 using PocketBudget.Repositories;
-using PocketBudget.Services;
 using PocketBudget.Validators;
 using PocketBudget.Views;
 using System.Collections.ObjectModel;
-using System.Text.Json;
-
 
 namespace PocketBudget.ViewModels;
 
 public partial class MainViewModel : ObservableObject
 {
-    private readonly IApiService _apiService;
     private readonly IExpenseRepository _expenseRepository;
+    private readonly ICategoryRepository _categoryRepository;
 
     public MainViewModel()
         : this(
-            new ApiService(),
-            new SqliteExpenseRepository(Path.Combine(FileSystem.AppDataDirectory, "expenses.db3")))
+            new SqliteExpenseRepository(Path.Combine(FileSystem.AppDataDirectory, "expenses.db3")),
+            new SqliteCategoryRepository(Path.Combine(FileSystem.AppDataDirectory, "expenses.db3")))
     {
-        _ = LoadSavedExpensesAsync();
+        _ = LoadInitialDataAsync();
     }
 
-    public MainViewModel(IApiService apiService, IExpenseRepository expenseRepository)
+    public MainViewModel(
+        IExpenseRepository expenseRepository,
+        ICategoryRepository categoryRepository)
     {
-        _apiService = apiService;
         _expenseRepository = expenseRepository;
+        _categoryRepository = categoryRepository;
     }
 
     [ObservableProperty]
-    private string statusMessage = "Cargá las categorías para empezar a registrar tus gastos.";
+    private string statusMessage = "Cargá tus ingresos, categorías y gastos para empezar.";
 
     [ObservableProperty]
     private string expenseDescription = string.Empty;
@@ -47,6 +46,12 @@ public partial class MainViewModel : ObservableObject
     private Category? selectedCategory;
 
     [ObservableProperty]
+    private string newCategoryName = string.Empty;
+
+    [ObservableProperty]
+    private bool isCategoryCreatorVisible;
+
+    [ObservableProperty]
     private string? receiptImagePath;
 
     [ObservableProperty]
@@ -55,6 +60,37 @@ public partial class MainViewModel : ObservableObject
     public ObservableCollection<Category> Categories { get; } = new();
 
     public ObservableCollection<Expense> Expenses { get; } = new();
+
+    private async Task LoadInitialDataAsync()
+    {
+        await LoadCategoriesFromStorageAsync();
+        await LoadSavedExpensesAsync();
+    }
+
+    private async Task LoadCategoriesFromStorageAsync()
+    {
+        try
+        {
+            var savedCategories = await _categoryRepository.GetCategoriesAsync();
+
+            Categories.Clear();
+
+            foreach (var category in savedCategories)
+            {
+                Categories.Add(category);
+            }
+
+            Categories.Add(new Category
+            {
+                Id = -1,
+                Name = "➕ Crear nueva categoría"
+            });
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"No se pudieron cargar las categorías: {ex.Message}";
+        }
+    }
 
     private async Task LoadSavedExpensesAsync()
     {
@@ -80,43 +116,49 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
-    [RelayCommand]
-    private async Task LoadCategories()
+    partial void OnSelectedCategoryChanged(Category? value)
     {
+        IsCategoryCreatorVisible = value?.Id == -1;
+
+        if (IsCategoryCreatorVisible)
+        {
+            StatusMessage = "Ingresá el nombre de la nueva categoría.";
+        }
+    }
+
+    [RelayCommand]
+    private async Task AddCategory()
+    {
+        if (string.IsNullOrWhiteSpace(NewCategoryName))
+        {
+            StatusMessage = "Debe ingresar el nombre de la categoría.";
+            return;
+        }
+
+        var categoryName = NewCategoryName.Trim();
+
         try
         {
-            StatusMessage = "Cargando categorías desde la API...";
-
-            Categories.Clear();
-
-            var categories = await _apiService.GetCategoriesAsync();
-
-            foreach (var category in categories)
+            var result = await _categoryRepository.SaveCategoryAsync(new Category
             {
-                Categories.Add(category);
-            }
+                Name = categoryName
+            });
 
-            StatusMessage = $"Listo bestie: se cargaron {Categories.Count} categorías.";
-        }
-        catch (HttpRequestException ex) when (ex.StatusCode is not null)
-        {
-            StatusMessage = $"Error HTTP {(int)ex.StatusCode}: no se pudieron cargar las categorías.";
-        }
-        catch (HttpRequestException)
-        {
-            StatusMessage = "Error de conexión: revisá tu acceso a Internet.";
-        }
-        catch (TaskCanceledException)
-        {
-            StatusMessage = "La solicitud tardó demasiado. Intentá nuevamente.";
-        }
-        catch (JsonException)
-        {
-            StatusMessage = "Error al procesar los datos recibidos desde la API.";
+            await LoadCategoriesFromStorageAsync();
+
+            SelectedCategory = Categories.FirstOrDefault(category =>
+                category.Name.Equals(categoryName, StringComparison.OrdinalIgnoreCase));
+
+            NewCategoryName = string.Empty;
+            IsCategoryCreatorVisible = false;
+
+            StatusMessage = result == 0
+                ? "La categoría ya existía y fue seleccionada."
+                : "Categoría agregada correctamente ✨";
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Error inesperado: {ex.Message}";
+            StatusMessage = $"No se pudo guardar la categoría: {ex.Message}";
         }
     }
 
@@ -189,6 +231,12 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
+        if (SelectedCategory?.Id == -1)
+        {
+            StatusMessage = "Debe seleccionar una categoría válida.";
+            return;
+        }
+
         var expense = new Expense
         {
             Description = ExpenseDescription.Trim(),
@@ -209,6 +257,7 @@ public partial class MainViewModel : ObservableObject
             SelectedCategory = null;
             ReceiptImagePath = null;
             ReceiptStatusMessage = "Sin foto de ticket.";
+            IsCategoryCreatorVisible = false;
 
             VibrateOnSave();
 
@@ -235,9 +284,7 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
-
     [RelayCommand]
-
     private async Task GoToDetail(Expense? expense)
     {
         if (expense is null)
