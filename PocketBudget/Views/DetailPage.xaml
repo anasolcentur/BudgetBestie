@@ -101,6 +101,27 @@
                         FontSize="16"
                         TextColor="#7A4E69"/>
 
+                    <BoxView
+                        HeightRequest="1"
+                        BackgroundColor="#FFE5EC"/>
+
+                    <Label
+                        Text="🧾 Ticket"
+                        FontAttributes="Bold"
+                        TextColor="#B85C8E"/>
+
+                    <Label
+                        Text="{Binding ReceiptStatusMessage}"
+                        FontSize="15"
+                        TextColor="#7A4E69"/>
+
+                    <Image
+                        Source="{Binding ReceiptImagePath}"
+                        IsVisible="{Binding HasReceiptImage}"
+                        HeightRequest="260"
+                        Aspect="AspectFit"
+                        BackgroundColor="#FFF0F5"/>
+
                 </VerticalStackLayout>
 
             </Frame>
