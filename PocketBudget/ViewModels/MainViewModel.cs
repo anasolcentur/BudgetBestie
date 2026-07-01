@@ -2,9 +2,9 @@
 using CommunityToolkit.Mvvm.Input;
 using PocketBudget.Models;
 using PocketBudget.Services;
+using PocketBudget.Validators;
 using PocketBudget.Views;
 using System.Collections.ObjectModel;
-using System.Globalization;
 using System.Text.Json;
 
 namespace PocketBudget.ViewModels;
@@ -77,21 +77,16 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void AddExpense()
     {
-        if (string.IsNullOrWhiteSpace(ExpenseDescription))
-        {
-            StatusMessage = "Debe ingresar una descripción.";
-            return;
-        }
+        var isValid = ExpenseValidator.TryValidate(
+            ExpenseDescription,
+            ExpenseAmount,
+            SelectedCategory,
+            out var amount,
+            out var errorMessage);
 
-        if (!TryParseAmount(ExpenseAmount, out var amount) || amount <= 0)
+        if (!isValid)
         {
-            StatusMessage = "Debe ingresar un monto válido mayor a cero.";
-            return;
-        }
-
-        if (SelectedCategory is null)
-        {
-            StatusMessage = "Debe seleccionar una categoría.";
+            StatusMessage = errorMessage;
             return;
         }
 
@@ -99,7 +94,7 @@ public partial class MainViewModel : ObservableObject
         {
             Description = ExpenseDescription.Trim(),
             Amount = amount,
-            Category = SelectedCategory.Name,
+            Category = SelectedCategory!.Name,
             Date = DateTime.Now
         });
 
@@ -122,11 +117,5 @@ public partial class MainViewModel : ObservableObject
         {
             { "Expense", expense }
         });
-    }
-
-    private static bool TryParseAmount(string value, out decimal amount)
-    {
-        return decimal.TryParse(value, NumberStyles.Number, CultureInfo.CurrentCulture, out amount)
-            || decimal.TryParse(value.Replace(",", "."), NumberStyles.Number, CultureInfo.InvariantCulture, out amount);
     }
 }
