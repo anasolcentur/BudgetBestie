@@ -40,8 +40,14 @@ jobs:
       - name: Install MAUI Android workload
         run: dotnet workload install maui-android
 
-      - name: Restore solution
-        run: dotnet restore .\PocketBudget.sln
+      - name: Restore Core project
+        run: dotnet restore .\PocketBudget.Core\PocketBudget.Core.csproj
+
+      - name: Restore Tests project
+        run: dotnet restore .\PocketBudget.Tests\PocketBudget.Tests.csproj
+
+      - name: Restore Android MAUI app
+        run: dotnet restore .\PocketBudget\PocketBudget.csproj -f net8.0-android
 
       - name: Build Core project
         run: dotnet build .\PocketBudget.Core\PocketBudget.Core.csproj --configuration ${{ matrix.configuration }} --no-restore
