@@ -20,6 +20,8 @@ public partial class MainViewModel : ObservableObject
     private readonly IBudgetRepository _budgetRepository;
     private readonly List<Expense> _allExpenses = new();
 
+    private Expense? _editingExpense;
+
     public MainViewModel()
         : this(
             new SqliteExpenseRepository(Path.Combine(FileSystem.AppDataDirectory, "expenses.db3")),
@@ -77,6 +79,15 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private string receiptStatusMessage = "Sin foto de ticket.";
+
+    [ObservableProperty]
+    private bool isEditingExpense;
+
+    [ObservableProperty]
+    private string expenseFormTitle = "Nuevo gastito 🛍️";
+
+    [ObservableProperty]
+    private string expenseSaveButtonText = "Agregar gasto 💖";
 
     public ObservableCollection<Category> Categories { get; } = new();
 
@@ -356,6 +367,31 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
+        try
+        {
+            if (_editingExpense is not null)
+            {
+                await UpdateExistingExpenseAsync(amount);
+            }
+            else
+            {
+                await CreateNewExpenseAsync(amount);
+            }
+
+            ResetExpenseForm();
+            ApplyExpenseFilter();
+            UpdateBudgetSummary();
+
+            VibrateOnSave();
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"No se pudo guardar el gasto: {ex.Message}";
+        }
+    }
+
+    private async Task CreateNewExpenseAsync(decimal amount)
+    {
         var expense = new Expense
         {
             Description = ExpenseDescription.Trim(),
@@ -365,29 +401,109 @@ public partial class MainViewModel : ObservableObject
             ReceiptImagePath = ReceiptImagePath
         };
 
+        await _expenseRepository.SaveExpenseAsync(expense);
+
+        _allExpenses.Insert(0, expense);
+
+        StatusMessage = "Gasto guardado correctamente 💖";
+    }
+
+    private async Task UpdateExistingExpenseAsync(decimal amount)
+    {
+        _editingExpense!.Description = ExpenseDescription.Trim();
+        _editingExpense.Amount = amount;
+        _editingExpense.Category = SelectedCategory!.Name;
+        _editingExpense.ReceiptImagePath = ReceiptImagePath;
+
+        await _expenseRepository.SaveExpenseAsync(_editingExpense);
+
+        var index = _allExpenses.FindIndex(expense => expense.Id == _editingExpense.Id);
+
+        if (index >= 0)
+        {
+            _allExpenses[index] = _editingExpense;
+        }
+
+        StatusMessage = "Gasto actualizado correctamente ✨";
+    }
+
+    [RelayCommand]
+    private void EditExpense(Expense? expense)
+    {
+        if (expense is null)
+        {
+            return;
+        }
+
+        _editingExpense = expense;
+
+        ExpenseDescription = expense.Description;
+        ExpenseAmount = expense.Amount.ToString("F2", CultureInfo.CurrentCulture);
+        SelectedCategory = Categories.FirstOrDefault(category =>
+            category.Name.Equals(expense.Category, StringComparison.OrdinalIgnoreCase));
+        ReceiptImagePath = expense.ReceiptImagePath;
+        ReceiptStatusMessage = string.IsNullOrWhiteSpace(expense.ReceiptImagePath)
+            ? "Sin foto de ticket."
+            : "Ticket cargado para este gasto.";
+
+        IsEditingExpense = true;
+        ExpenseFormTitle = "Editar gastito ✏️";
+        ExpenseSaveButtonText = "Guardar cambios ✨";
+        StatusMessage = "Editando gasto seleccionado.";
+    }
+
+    [RelayCommand]
+    private async Task DeleteExpense(Expense? expense)
+    {
+        if (expense is null)
+        {
+            return;
+        }
+
         try
         {
-            await _expenseRepository.SaveExpenseAsync(expense);
+            await _expenseRepository.DeleteExpenseAsync(expense);
 
-            _allExpenses.Insert(0, expense);
+            _allExpenses.RemoveAll(item => item.Id == expense.Id);
+
+            if (_editingExpense?.Id == expense.Id)
+            {
+                ResetExpenseForm();
+            }
+
             ApplyExpenseFilter();
             UpdateBudgetSummary();
 
-            ExpenseDescription = string.Empty;
-            ExpenseAmount = string.Empty;
-            SelectedCategory = null;
-            ReceiptImagePath = null;
-            ReceiptStatusMessage = "Sin foto de ticket.";
-            IsCategoryCreatorVisible = false;
-
-            VibrateOnSave();
-
-            StatusMessage = "Gasto guardado correctamente 💖";
+            StatusMessage = "Gasto eliminado correctamente.";
         }
         catch (Exception ex)
         {
-            StatusMessage = $"No se pudo guardar el gasto: {ex.Message}";
+            StatusMessage = $"No se pudo eliminar el gasto: {ex.Message}";
         }
+    }
+
+    [RelayCommand]
+    private void CancelEdit()
+    {
+        ResetExpenseForm();
+
+        StatusMessage = "Edición cancelada.";
+    }
+
+    private void ResetExpenseForm()
+    {
+        _editingExpense = null;
+
+        ExpenseDescription = string.Empty;
+        ExpenseAmount = string.Empty;
+        SelectedCategory = null;
+        ReceiptImagePath = null;
+        ReceiptStatusMessage = "Sin foto de ticket.";
+        IsCategoryCreatorVisible = false;
+
+        IsEditingExpense = false;
+        ExpenseFormTitle = "Nuevo gastito 🛍️";
+        ExpenseSaveButtonText = "Agregar gasto 💖";
     }
 
     private static bool TryParseDecimal(string value, out decimal amount)

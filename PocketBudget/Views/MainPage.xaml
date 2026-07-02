@@ -98,12 +98,10 @@
 
                     <Grid
                         ColumnDefinitions="*,*"
-                        RowDefinitions="Auto,Auto"
-                        ColumnSpacing="12"
-                        RowSpacing="12">
+                        RowDefinitions="Auto"
+                        ColumnSpacing="12">
 
                         <Frame
-                            Grid.Row="0"
                             Grid.Column="0"
                             Padding="14"
                             CornerRadius="18"
@@ -126,7 +124,6 @@
                         </Frame>
 
                         <Frame
-                            Grid.Row="0"
                             Grid.Column="1"
                             Padding="14"
                             CornerRadius="18"
@@ -164,7 +161,7 @@
                 <VerticalStackLayout Spacing="14">
 
                     <Label
-                        Text="Nuevo gastito 🛍️"
+                        Text="{Binding ExpenseFormTitle}"
                         FontSize="24"
                         FontAttributes="Bold"
                         TextColor="#B85C8E"
@@ -280,13 +277,23 @@
                         BackgroundColor="#FFF0F5"/>
 
                     <Button
-                        Text="Agregar gasto 💖"
+                        Text="{Binding ExpenseSaveButtonText}"
                         Command="{Binding AddExpenseCommand}"
                         BackgroundColor="#FF8FAB"
                         TextColor="White"
                         FontAttributes="Bold"
                         CornerRadius="20"
                         HeightRequest="50"/>
+
+                    <Button
+                        Text="Cancelar edición"
+                        Command="{Binding CancelEditCommand}"
+                        IsVisible="{Binding IsEditingExpense}"
+                        BackgroundColor="#FFE5EC"
+                        TextColor="#9D4E77"
+                        FontAttributes="Bold"
+                        CornerRadius="20"
+                        HeightRequest="46"/>
 
                 </VerticalStackLayout>
 
@@ -362,12 +369,6 @@
                             BorderColor="#FFC8DD"
                             HasShadow="True">
 
-                            <Frame.GestureRecognizers>
-                                <TapGestureRecognizer
-                                    Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.GoToDetailCommand}"
-                                    CommandParameter="{Binding .}" />
-                            </Frame.GestureRecognizers>
-
                             <VerticalStackLayout Spacing="8">
 
                                 <Grid
@@ -404,11 +405,44 @@
                                     HeightRequest="1"
                                     BackgroundColor="#FFE5EC"/>
 
-                                <Label
-                                    Text="Tocá para ver el detalle"
-                                    FontSize="12"
-                                    TextColor="#C77DA5"
-                                    HorizontalOptions="End"/>
+                                <Grid
+                                    ColumnDefinitions="*,*,*"
+                                    ColumnSpacing="8">
+
+                                    <Button
+                                        Grid.Column="0"
+                                        Text="Ver"
+                                        Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.GoToDetailCommand}"
+                                        CommandParameter="{Binding .}"
+                                        BackgroundColor="#CDB4DB"
+                                        TextColor="White"
+                                        FontAttributes="Bold"
+                                        CornerRadius="16"
+                                        HeightRequest="42"/>
+
+                                    <Button
+                                        Grid.Column="1"
+                                        Text="Editar"
+                                        Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.EditExpenseCommand}"
+                                        CommandParameter="{Binding .}"
+                                        BackgroundColor="#FFB3C6"
+                                        TextColor="White"
+                                        FontAttributes="Bold"
+                                        CornerRadius="16"
+                                        HeightRequest="42"/>
+
+                                    <Button
+                                        Grid.Column="2"
+                                        Text="Eliminar"
+                                        Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.DeleteExpenseCommand}"
+                                        CommandParameter="{Binding .}"
+                                        BackgroundColor="#FFE5EC"
+                                        TextColor="#9D4E77"
+                                        FontAttributes="Bold"
+                                        CornerRadius="16"
+                                        HeightRequest="42"/>
+
+                                </Grid>
 
                             </VerticalStackLayout>
 
