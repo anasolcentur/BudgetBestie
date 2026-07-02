@@ -37,13 +37,13 @@ jobs:
         run: dotnet restore .\PocketBudget.Tests\PocketBudget.Tests.csproj
 
       - name: Restore Android app
-        run: dotnet restore .\PocketBudget\PocketBudget.csproj -p:TargetFramework=net8.0-android
+        run: dotnet restore .\PocketBudget\PocketBudget.csproj
 
       - name: Build Core
-        run: dotnet build .\PocketBudget.Core\PocketBudget.Core.csproj --configuration Debug --no-restore
+        run: dotnet build .\PocketBudget.Core\PocketBudget.Core.csproj --configuration Debug
 
       - name: Build Android app
-        run: dotnet build .\PocketBudget\PocketBudget.csproj --configuration Debug -p:TargetFramework=net8.0-android --no-restore
+        run: dotnet build .\PocketBudget\PocketBudget.csproj -f net8.0-android --configuration Debug
 
       - name: Run tests
         run: dotnet test .\PocketBudget.Tests\PocketBudget.Tests.csproj --configuration Debug --logger "trx;LogFileName=test-results.trx"
