@@ -47,13 +47,13 @@ jobs:
         run: dotnet restore .\PocketBudget.Tests\PocketBudget.Tests.csproj
 
       - name: Restore Android MAUI app
-        run: dotnet restore .\PocketBudget\PocketBudget.csproj -p:TargetFramework=net8.0-android
+        run: dotnet restore .\PocketBudget\PocketBudget.csproj -p:TargetFrameworks=net8.0-android
 
       - name: Build Core project
         run: dotnet build .\PocketBudget.Core\PocketBudget.Core.csproj --configuration ${{ matrix.configuration }} --no-restore
 
       - name: Build Android MAUI app
-        run: dotnet build .\PocketBudget\PocketBudget.csproj -f net8.0-android --configuration ${{ matrix.configuration }} --no-restore
+        run: dotnet build .\PocketBudget\PocketBudget.csproj --configuration ${{ matrix.configuration }} -p:TargetFrameworks=net8.0-android --no-restore
 
       - name: Run tests
         run: dotnet test .\PocketBudget.Tests\PocketBudget.Tests.csproj --configuration ${{ matrix.configuration }} --logger "trx;LogFileName=test-results.trx"
