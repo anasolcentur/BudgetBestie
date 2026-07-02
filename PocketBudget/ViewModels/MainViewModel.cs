@@ -9,6 +9,7 @@ using PocketBudget.Repositories;
 using PocketBudget.Validators;
 using PocketBudget.Views;
 using System.Collections.ObjectModel;
+using System.Globalization;
 
 namespace PocketBudget.ViewModels;
 
@@ -16,26 +17,42 @@ public partial class MainViewModel : ObservableObject
 {
     private readonly IExpenseRepository _expenseRepository;
     private readonly ICategoryRepository _categoryRepository;
+    private readonly IBudgetRepository _budgetRepository;
     private readonly List<Expense> _allExpenses = new();
 
     public MainViewModel()
         : this(
             new SqliteExpenseRepository(Path.Combine(FileSystem.AppDataDirectory, "expenses.db3")),
-            new SqliteCategoryRepository(Path.Combine(FileSystem.AppDataDirectory, "expenses.db3")))
+            new SqliteCategoryRepository(Path.Combine(FileSystem.AppDataDirectory, "expenses.db3")),
+            new SqliteBudgetRepository(Path.Combine(FileSystem.AppDataDirectory, "expenses.db3")))
     {
         _ = LoadInitialDataAsync();
     }
 
     public MainViewModel(
         IExpenseRepository expenseRepository,
-        ICategoryRepository categoryRepository)
+        ICategoryRepository categoryRepository,
+        IBudgetRepository budgetRepository)
     {
         _expenseRepository = expenseRepository;
         _categoryRepository = categoryRepository;
+        _budgetRepository = budgetRepository;
     }
 
     [ObservableProperty]
     private string statusMessage = "Cargá tus ingresos, categorías y gastos para empezar.";
+
+    [ObservableProperty]
+    private string monthlyIncomeText = string.Empty;
+
+    [ObservableProperty]
+    private decimal monthlyIncome;
+
+    [ObservableProperty]
+    private decimal monthlySpent;
+
+    [ObservableProperty]
+    private decimal availableBalance;
 
     [ObservableProperty]
     private string expenseDescription = string.Empty;
@@ -69,8 +86,27 @@ public partial class MainViewModel : ObservableObject
 
     private async Task LoadInitialDataAsync()
     {
+        await LoadBudgetAsync();
         await LoadCategoriesFromStorageAsync();
         await LoadSavedExpensesAsync();
+    }
+
+    private async Task LoadBudgetAsync()
+    {
+        try
+        {
+            MonthlyIncome = await _budgetRepository.GetMonthlyIncomeAsync();
+
+            MonthlyIncomeText = MonthlyIncome > 0
+                ? MonthlyIncome.ToString("F2", CultureInfo.CurrentCulture)
+                : string.Empty;
+
+            UpdateBudgetSummary();
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"No se pudo cargar el presupuesto: {ex.Message}";
+        }
     }
 
     private async Task LoadCategoriesFromStorageAsync()
@@ -124,6 +160,7 @@ public partial class MainViewModel : ObservableObject
             _allExpenses.AddRange(savedExpenses);
 
             ApplyExpenseFilter();
+            UpdateBudgetSummary();
 
             if (_allExpenses.Count > 0)
             {
@@ -168,6 +205,43 @@ public partial class MainViewModel : ObservableObject
         foreach (var expense in filteredExpenses)
         {
             Expenses.Add(expense);
+        }
+    }
+
+    private void UpdateBudgetSummary()
+    {
+        var now = DateTime.Now;
+
+        MonthlySpent = _allExpenses
+            .Where(expense => expense.Date.Month == now.Month && expense.Date.Year == now.Year)
+            .Sum(expense => expense.Amount);
+
+        AvailableBalance = MonthlyIncome - MonthlySpent;
+    }
+
+    [RelayCommand]
+    private async Task SaveMonthlyIncome()
+    {
+        if (!TryParseDecimal(MonthlyIncomeText, out var income) || income < 0)
+        {
+            StatusMessage = "Debe ingresar un ingreso mensual válido.";
+            return;
+        }
+
+        try
+        {
+            await _budgetRepository.SaveMonthlyIncomeAsync(income);
+
+            MonthlyIncome = income;
+            MonthlyIncomeText = income.ToString("F2", CultureInfo.CurrentCulture);
+
+            UpdateBudgetSummary();
+
+            StatusMessage = "Ingreso mensual guardado correctamente ✨";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"No se pudo guardar el ingreso mensual: {ex.Message}";
         }
     }
 
@@ -297,6 +371,7 @@ public partial class MainViewModel : ObservableObject
 
             _allExpenses.Insert(0, expense);
             ApplyExpenseFilter();
+            UpdateBudgetSummary();
 
             ExpenseDescription = string.Empty;
             ExpenseAmount = string.Empty;
@@ -313,6 +388,12 @@ public partial class MainViewModel : ObservableObject
         {
             StatusMessage = $"No se pudo guardar el gasto: {ex.Message}";
         }
+    }
+
+    private static bool TryParseDecimal(string value, out decimal amount)
+    {
+        return decimal.TryParse(value, NumberStyles.Number, CultureInfo.CurrentCulture, out amount)
+            || decimal.TryParse(value.Replace(",", "."), NumberStyles.Number, CultureInfo.InvariantCulture, out amount);
     }
 
     private static void VibrateOnSave()
