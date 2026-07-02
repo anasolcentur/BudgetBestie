@@ -196,6 +196,34 @@
                 BackgroundColor="#FFC8DD"
                 Margin="0,4"/>
 
+            <Frame
+                Padding="16"
+                CornerRadius="22"
+                BackgroundColor="White"
+                BorderColor="#FFC8DD"
+                HasShadow="True">
+
+                <VerticalStackLayout Spacing="10">
+
+                    <Label
+                        Text="Filtrar gastos 🔎"
+                        FontAttributes="Bold"
+                        FontSize="18"
+                        TextColor="#B85C8E"/>
+
+                    <Picker
+                        Title="Filtrar por categoría"
+                        ItemsSource="{Binding FilterCategories}"
+                        ItemDisplayBinding="{Binding Name}"
+                        SelectedItem="{Binding SelectedFilterCategory}"
+                        BackgroundColor="#FFF0F5"
+                        TextColor="#5C3A4D"
+                        TitleColor="#B5839D"/>
+
+                </VerticalStackLayout>
+
+            </Frame>
+
             <Label
                 Text="Mis gastos ✨"
                 FontAttributes="Bold"

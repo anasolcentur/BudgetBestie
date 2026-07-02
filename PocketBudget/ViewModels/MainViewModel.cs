@@ -16,6 +16,7 @@ public partial class MainViewModel : ObservableObject
 {
     private readonly IExpenseRepository _expenseRepository;
     private readonly ICategoryRepository _categoryRepository;
+    private readonly List<Expense> _allExpenses = new();
 
     public MainViewModel()
         : this(
@@ -52,12 +53,17 @@ public partial class MainViewModel : ObservableObject
     private bool isCategoryCreatorVisible;
 
     [ObservableProperty]
+    private Category? selectedFilterCategory;
+
+    [ObservableProperty]
     private string? receiptImagePath;
 
     [ObservableProperty]
     private string receiptStatusMessage = "Sin foto de ticket.";
 
     public ObservableCollection<Category> Categories { get; } = new();
+
+    public ObservableCollection<Category> FilterCategories { get; } = new();
 
     public ObservableCollection<Expense> Expenses { get; } = new();
 
@@ -71,13 +77,23 @@ public partial class MainViewModel : ObservableObject
     {
         try
         {
+            var previousFilterName = SelectedFilterCategory?.Name;
+
             var savedCategories = await _categoryRepository.GetCategoriesAsync();
 
             Categories.Clear();
+            FilterCategories.Clear();
+
+            FilterCategories.Add(new Category
+            {
+                Id = 0,
+                Name = "Todas"
+            });
 
             foreach (var category in savedCategories)
             {
                 Categories.Add(category);
+                FilterCategories.Add(category);
             }
 
             Categories.Add(new Category
@@ -85,6 +101,12 @@ public partial class MainViewModel : ObservableObject
                 Id = -1,
                 Name = "➕ Crear nueva categoría"
             });
+
+            SelectedFilterCategory = string.IsNullOrWhiteSpace(previousFilterName)
+                ? FilterCategories.FirstOrDefault()
+                : FilterCategories.FirstOrDefault(category =>
+                    category.Name.Equals(previousFilterName, StringComparison.OrdinalIgnoreCase))
+                  ?? FilterCategories.FirstOrDefault();
         }
         catch (Exception ex)
         {
@@ -98,16 +120,14 @@ public partial class MainViewModel : ObservableObject
         {
             var savedExpenses = await _expenseRepository.GetExpensesAsync();
 
-            Expenses.Clear();
+            _allExpenses.Clear();
+            _allExpenses.AddRange(savedExpenses);
 
-            foreach (var expense in savedExpenses)
-            {
-                Expenses.Add(expense);
-            }
+            ApplyExpenseFilter();
 
-            if (Expenses.Count > 0)
+            if (_allExpenses.Count > 0)
             {
-                StatusMessage = $"Se cargaron {Expenses.Count} gastos guardados.";
+                StatusMessage = $"Se cargaron {_allExpenses.Count} gastos guardados.";
             }
         }
         catch (Exception ex)
@@ -123,6 +143,31 @@ public partial class MainViewModel : ObservableObject
         if (IsCategoryCreatorVisible)
         {
             StatusMessage = "Ingresá el nombre de la nueva categoría.";
+        }
+    }
+
+    partial void OnSelectedFilterCategoryChanged(Category? value)
+    {
+        ApplyExpenseFilter();
+    }
+
+    private void ApplyExpenseFilter()
+    {
+        Expenses.Clear();
+
+        IEnumerable<Expense> filteredExpenses = _allExpenses;
+
+        if (SelectedFilterCategory is not null && SelectedFilterCategory.Id != 0)
+        {
+            filteredExpenses = _allExpenses.Where(expense =>
+                expense.Category.Equals(
+                    SelectedFilterCategory.Name,
+                    StringComparison.OrdinalIgnoreCase));
+        }
+
+        foreach (var expense in filteredExpenses)
+        {
+            Expenses.Add(expense);
         }
     }
 
@@ -250,7 +295,8 @@ public partial class MainViewModel : ObservableObject
         {
             await _expenseRepository.SaveExpenseAsync(expense);
 
-            Expenses.Insert(0, expense);
+            _allExpenses.Insert(0, expense);
+            ApplyExpenseFilter();
 
             ExpenseDescription = string.Empty;
             ExpenseAmount = string.Empty;
